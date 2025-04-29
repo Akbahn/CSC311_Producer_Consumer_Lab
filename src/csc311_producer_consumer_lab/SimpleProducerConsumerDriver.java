@@ -8,14 +8,13 @@ public class SimpleProducerConsumerDriver {
     private static final int QUEUE_CAPACITY = 5;
     private static final int PRODUCER_COUNT = 2;
     private static final int CONSUMER_COUNT = 3;
-    private static final int RUN_DURATION_SECONDS = 5;
+    private static final int MAX_CYCLES = 5; // << New: how many times each producer/consumer runs
 
     private final BlockingQueue<Double> blockingQueue = new LinkedBlockingDeque<>(QUEUE_CAPACITY);
-    private volatile boolean running = true;
 
     private Runnable producerTask() {
         return () -> {
-            while (running) {
+            for (int i = 0; i < MAX_CYCLES; i++) {
                 double value = generateValue();
                 try {
                     blockingQueue.put(value);
@@ -30,7 +29,7 @@ public class SimpleProducerConsumerDriver {
 
     private Runnable consumerTask() {
         return () -> {
-            while (running) {
+            for (int i = 0; i < MAX_CYCLES; i++) {
                 try {
                     Double value = blockingQueue.take();
                     log.info(String.format("[%s] Value consumed: %f", Thread.currentThread().getName(), value));
@@ -57,18 +56,10 @@ public class SimpleProducerConsumerDriver {
             executor.submit(consumerTask());
         }
 
+        executor.shutdown();
         try {
-            Thread.sleep(RUN_DURATION_SECONDS * 1000L);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-
-        // Stop tasks
-        running = false;
-        executor.shutdownNow();  // Interrupt all running threads
-        try {
-            if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
-                System.err.println("Executor did not terminate in time.");
+            if (!executor.awaitTermination(10, TimeUnit.SECONDS)) {
+                executor.shutdownNow();
             }
         } catch (InterruptedException e) {
             executor.shutdownNow();

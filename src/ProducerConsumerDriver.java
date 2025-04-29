@@ -1,68 +1,76 @@
 import java.util.ArrayList;
 import java.util.List;
-
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 public class ProducerConsumerDriver {
     private static final int MAX_QUEUE_CAPACITY = 5;
+    private static final int PRODUCER_COUNT = 5;
+    private static final int CONSUMER_COUNT = 5;
 
     public static void demoSingleProducerAndSingleConsumer() {
         DataQueue dataQueue = new DataQueue(MAX_QUEUE_CAPACITY);
+        ExecutorService executor = Executors.newFixedThreadPool(2);
 
         Producer producer = new Producer(dataQueue);
-        Thread producerThread = new Thread(producer);
-
         Consumer consumer = new Consumer(dataQueue);
-        Thread consumerThread = new Thread(consumer);
 
-        producerThread.start();
-        consumerThread.start();
+        // We can use an executor to run both the producer and consumer and manage their lifecycle
+        executor.submit(producer);
+        executor.submit(consumer);
 
-        List<Thread> threads = new ArrayList<>();
-        threads.add(producerThread);
-        threads.add(consumerThread);
+        try {
+            Thread.sleep(2000);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
 
-        // let threads run for two seconds
-        MyThread.sleep(2000);
-
-        // stop threads
         producer.stop();
         consumer.stop();
-
-        MyThread.waitForAllThreadsToComplete(threads);
+        shutdownExecutor(executor);
     }
 
     public static void demoMultipleProducersAndMultipleConsumers() {
         DataQueue dataQueue = new DataQueue(MAX_QUEUE_CAPACITY);
-        int producerCount = 5;
-        int consumerCount = 5;
-        List<Thread> threads = new ArrayList<>();
+        ExecutorService executor = Executors.newFixedThreadPool(PRODUCER_COUNT + CONSUMER_COUNT);
+
         List<Producer> producers = new ArrayList<>();
         List<Consumer> consumers = new ArrayList<>();
 
-        for(int i = 0; i < producerCount; i++) {
+        for (int i = 0; i < PRODUCER_COUNT; i++) {
             Producer producer = new Producer(dataQueue);
-            Thread producerThread = new Thread(producer);
-            producerThread.start();
-            threads.add(producerThread);
             producers.add(producer);
+            executor.submit(producer);
         }
 
-        for(int i = 0; i < consumerCount; i++) {
+        for (int i = 0; i < CONSUMER_COUNT; i++) {
             Consumer consumer = new Consumer(dataQueue);
-            Thread consumerThread = new Thread(consumer);
-            consumerThread.start();
-            threads.add(consumerThread);
             consumers.add(consumer);
+            executor.submit(consumer);
         }
 
-        // let threads run for ten seconds
-        MyThread.sleep(10000);
+        try {
+            Thread.sleep(10000); // Let them run
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
 
-        // stop threads
-        consumers.forEach(Consumer::stop);
         producers.forEach(Producer::stop);
+        consumers.forEach(Consumer::stop);
+        shutdownExecutor(executor);
+    }
 
-        MyThread.waitForAllThreadsToComplete(threads);
+    private static void shutdownExecutor(ExecutorService executor) {
+        executor.shutdown();
+        try {
+            if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
+                executor.shutdownNow(); // This will force shutdown if its still running
+            }
+        } catch (InterruptedException e) {
+            executor.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
     }
 
     public static void main(String[] args) {

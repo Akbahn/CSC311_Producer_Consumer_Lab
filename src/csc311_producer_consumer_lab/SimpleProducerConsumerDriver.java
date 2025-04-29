@@ -8,7 +8,8 @@ public class SimpleProducerConsumerDriver {
     private static final int QUEUE_CAPACITY = 5;
     private static final int PRODUCER_COUNT = 2;
     private static final int CONSUMER_COUNT = 3;
-    private static final int MAX_CYCLES = 5; // << New: how many times each producer/consumer runs
+    private static final int MAX_CYCLES = 5; //  New: added fixed cycle of 5
+
 
     private final BlockingQueue<Double> blockingQueue = new LinkedBlockingDeque<>(QUEUE_CAPACITY);
 
